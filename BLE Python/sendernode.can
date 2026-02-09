@@ -1,0 +1,42 @@
+﻿/*@!Encoding:65001*/
+includes
+{
+  
+}
+
+variables
+{
+      message lockstatus msg; // Define the message to send
+      msTimer lockTxTimer;
+}
+
+on sysvar_change sysvar::Vehicle::DoorLock {
+  if (@this == 1){
+    write("Lock detected");
+    msg.byte(2) = 0x00;
+    } else {
+    write("Unlock detected");
+    msg.byte(2) = 0x07; 
+    }
+    
+  setTimer(lockTxTimer, 0);   // Start periodic sending 
+}
+
+on timer lockTxTimer
+{
+  msg.ID = 0xFF;
+  msg.DLC = 8;
+
+  msg.byte(0) = 0x00;
+  msg.byte(1) = 0x00;
+  msg.byte(3) = 0x00;
+  msg.byte(4) = 0x00;
+  msg.byte(5) = 0xC0;
+  msg.byte(6) = 0x00;
+  msg.byte(7) = 0x00;
+
+  output(msg);
+  setTimer(lockTxTimer, 100);   // Send every 100 ms
+}
+  
+  

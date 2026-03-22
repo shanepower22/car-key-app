@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Key Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <h1>Digital Car Key – Manager Portal</h1>
+        <span class="user">Manager</span>
+    </header>
+
+    <!-- Page Layout -->
+    <div class="container">
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <ul>
+                <li class="active">Dashboard</li>
+                <li>Vehicles</li>
+                <li>Users</li>
+                <li>Keys</li>
+                <li>Audit Logs</li>
+                <li>Settings</li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+
+            <!-- Overview Cards -->
+            <section class="cards">
+                <div class="card">
+                    <h3>Total Vehicles</h3>
+                    <p>12</p>
+                </div>
+                <div class="card">
+                    <h3>Active Keys</h3>
+                    <p>34</p>
+                </div>
+                <div class="card">
+                    <h3>Unlock Attempts Today</h3>
+                    <p>58</p>
+                </div>
+            </section>
+
+            <!-- Vehicle Table -->
+            <section class="table-section">
+                <h2>Vehicles</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vehicle ID</th>
+                            <th>Model</th>
+                            <th>Status</th>
+                            <th>Assigned User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>JLR-001</td>
+                            <td>Jaguar XE</td>
+                            <td class="ok">Locked</td>
+                            <td>driver01</td>
+                        </tr>
+                        <tr>
+                            <td>JLR-002</td>
+                            <td>Range Rover Evoque</td>
+                            <td class="warn">Unlocked</td>
+                            <td>driver04</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Recent Events -->
+            <section class="table-section">
+                <h2>Recent Unlock Events</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Vehicle</th>
+                            <th>Action</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>10:41</td>
+                            <td>driver01</td>
+                            <td>JLR-001</td>
+                            <td>Unlock</td>
+                            <td class="ok">Success</td>
+                        </tr>
+                        <tr>
+                            <td>10:38</td>
+                            <td>driver04</td>
+                            <td>JLR-002</td>
+                            <td>Unlock</td>
+                            <td class="fail">Failed</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+        </main>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Car Key System - Shane Power</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header>
+        <h1>Digital Car Key System</h1>
+        <p>Shane Power | 20102592 | SETU | Final Year Project 2026</p>
+        <nav>
+            <a href="#about">About</a>
+            <a href="#system">System</a>
+            <a href="#security">Security</a>
+            <a href="#links">Project Links</a>
+        </nav>
+    </header>
+
+    <main>
+
+        <section id="about">
+            <h2>About</h2>
+            <p>
+                This project designs and implements a secure smartphone-based digital car key system aimed at
+                car rental and fleet management. The system replaces traditional physical keys with securely
+                provisioned digital keys, improving convenience and reducing the security risks associated
+                with handling physical keys.
+            </p>
+            <p>
+                The prototype consists of a mobile Car Key App, a Vehicle Access Control Unit (VACU) running
+                on a PC, a cloud-based management platform, and a CAN interface using Vector CANoe connected
+                to a Jaguar Land Rover testing rig.
+            </p>
+        </section>
+
+        <section id="system">
+            <h2>System Components</h2>
+
+            <h3>Car Key App</h3>
+            <p>
+                An Android app that authenticates the user via biometrics (fingerprint, Face ID) or PIN.
+                Once authenticated, the app issues a signed lock or unlock command over Bluetooth Low Energy
+                (BLE) to the VACU. Private keys are stored securely in the Android Keystore.
+            </p>
+
+            <h3>Vehicle Access Control Unit (VACU)</h3>
+            <p>
+                A Python application that acts as the BLE server and the secure control point between the
+                mobile app and the vehicle network. It validates incoming requests using:
+            </p>
+            <ul>
+                <li>Cryptographic key pair checking</li>
+                <li>Timestamp and nonce verification</li>
+                <li>User authorisation rules</li>
+            </ul>
+
+            <h3>CANoe &amp; JLR Test Rig</h3>
+            <p>
+                Once the VACU approves a request, it forwards the command to Vector CANoe via the Microsoft
+                COM interface. CANoe generates and transmits a real CAN message to a Jaguar Land Rover
+                testing rig, triggering simulated door lock and unlock events.
+            </p>
+
+            <h3>Cloud Backend &amp; Manager App</h3>
+            <p>
+                The cloud backend handles user authentication, digital key provisioning, and event logging.
+                Fleet managers use the Manager App to:
+            </p>
+            <ul>
+                <li>Create, assign, and revoke digital keys</li>
+                <li>Manage temporary guest access</li>
+                <li>Monitor vehicle access activity and logs</li>
+            </ul>
+        </section>
+
+        <section id="security">
+            <h2>Cybersecurity</h2>
+            <p>
+                A key focus of this project is evaluating the security of a digital car key system. A threat
+                model was developed covering the following attack types:
+            </p>
+            <ul>
+                <li><strong>Replay Attacks</strong> - An attacker captures and replays a valid BLE unlock message. Mitigated using nonces and timestamps in a challenge-response protocol.</li>
+                <li><strong>Man-in-the-Middle Attacks</strong> - An attacker intercepts the BLE transmission. Mitigated using BLE Secure Connections with pairing and bonding, and the VACU rejecting unsigned or altered messages.</li>
+                <li><strong>Unauthorised Access</strong> - An attacker with a stolen KeyID attempts access. Mitigated by biometric/PIN authentication, secure keystore storage, and key revocation.</li>
+                <li><strong>Cloud Data Breach</strong> - The cloud backend is compromised. Mitigated because private keys are stored only on the user's device, and TLS encryption is used for all communications.</li>
+            </ul>
+            <p>Each attack vector will be tested in a controlled environment to demonstrate the system's resilience.</p>
+        </section>
+
+        <section id="links">
+            <h2>Project Links</h2>
+            <ul>
+                <li><a href="poster/portrait.png" target="_blank">Poster</a></li>
+                <li><a href="#" target="_blank">Demo Video</a></li>
+                <li><a href="https://github.com/shanepower22/car-key-app/" target="_blank">GitHub Repository</a></li>
+            </ul>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>Shane Power | 20102592 | South East Technological University | 2026</p>
+    </footer>
+
+</body>
+</html>

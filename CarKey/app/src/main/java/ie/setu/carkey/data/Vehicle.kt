@@ -1,4 +1,4 @@
-package ie.setu.carkey.models
+package ie.setu.carkey.data
 
 data class Vehicle(
     val vehicleId: String = "",
@@ -7,4 +7,3 @@ data class Vehicle(
     val registrationPlate: String = "",
     val currentKeyId: String? = null
 )
-

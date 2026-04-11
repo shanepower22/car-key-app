@@ -1,6 +1,7 @@
 package ie.setu.carkey.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import ie.setu.carkey.data.DigitalKey
 import ie.setu.carkey.data.EventResult
@@ -13,6 +14,7 @@ import ie.setu.carkey.service.BleManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
@@ -33,18 +35,34 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    init { loadKeyAndVehicle() }
+    init {
+        loadKeyAndVehicle()
+        observeBleConnection()
+    }
 
     private fun loadKeyAndVehicle() {
         _uiState.value = _uiState.value.copy(isLoading = true)
         repository.getKeyForUser(AuthManager.currentUid) { key ->
             if (key == null) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "No active key found")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "No active key found for this account"
+                )
                 return@getKeyForUser
             }
             _uiState.value = _uiState.value.copy(key = key)
             repository.getVehicle(key.vehicleId) { vehicle ->
                 _uiState.value = _uiState.value.copy(vehicle = vehicle, isLoading = false)
+                Timber.i("Loaded vehicle: ${vehicle?.vehicleId}, key: ${key.keyId}")
+            }
+        }
+    }
+
+    private fun observeBleConnection() {
+        viewModelScope.launch {
+            BleManager.isConnected.collect { connected ->
+                _uiState.value = _uiState.value.copy(bleConnected = connected)
+                Timber.i("BLE connection state changed: $connected")
             }
         }
     }
@@ -55,6 +73,11 @@ class HomeViewModel @Inject constructor(
     private fun sendCommand(command: String, action: VehicleAction) {
         val key = _uiState.value.key ?: run {
             Timber.w("sendCommand: no active key")
+            return
+        }
+        if (!_uiState.value.bleConnected) {
+            Timber.w("sendCommand: VACU not connected")
+            _uiState.value = _uiState.value.copy(error = "VACU not connected")
             return
         }
         BleManager.sendCommand(command)
@@ -68,5 +91,6 @@ class HomeViewModel @Inject constructor(
                 nonce     = UUID.randomUUID().toString()
             )
         )
+        Timber.i("$action command sent for vehicle ${key.vehicleId}")
     }
 }

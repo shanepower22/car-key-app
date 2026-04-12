@@ -8,6 +8,7 @@ import win32com.client
 import win32com.client.connect
 
 from bleak import BleakClient, BleakScanner
+from payload_parser import validate_payload
 
 
 #  
@@ -114,17 +115,20 @@ async def handle_ble():
 
                 def notification_handler(_, data: bytearray):
                     try:
-                        cmd = data.decode().strip().lower()
-                        print("BLE command received:", cmd)
+                        raw = data.decode().strip()
+                        print("BLE payload received:", raw)
+
+                        cmd, error = validate_payload(raw)
+                        if error:
+                            print(f"Payload rejected: {error}")
+                            return
 
                         if cmd == "unlock":
                             sysvar_queue.put(("Vehicle", "DoorLock", 0))
                         elif cmd == "lock":
                             sysvar_queue.put(("Vehicle", "DoorLock", 1))
-                        else:
-                            print("Unknown command")
                     except Exception as e:
-                        print(f"Error decoding command: {e}")
+                        print(f"Error handling BLE data: {e}")
 
                 await client.start_notify(BLE_CHARACTERISTIC_UUID, notification_handler)
 

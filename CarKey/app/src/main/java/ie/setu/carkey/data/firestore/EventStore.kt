@@ -23,4 +23,19 @@ object EventStore {
                 onError(it.message ?: "Failed to log event")
             }
     }
+
+    fun getAllEvents(onResult: (List<VehicleEvent>) -> Unit) {
+        db.collection("vehicleEvents")
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .addOnSuccessListener { docs ->
+                val events = docs.mapNotNull { it.toObject(VehicleEvent::class.java) }
+                Timber.i("Fetched ${events.size} events")
+                onResult(events)
+            }
+            .addOnFailureListener {
+                Timber.e("Failed to fetch events: ${it.message}")
+                onResult(emptyList())
+            }
+    }
 }

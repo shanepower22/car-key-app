@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "594994408003",
-    "project_id": "car-key-system",
-    "storage_bucket": "car-key-system.firebasestorage.app"
+    "project_number": "682069603474",
+    "project_id": "carkey-f38d3",
+    "storage_bucket": "carkey-f38d3.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:594994408003:android:a0bc6acd0888c146e782f6",
+        "mobilesdk_app_id": "1:682069603474:android:b1fbd832415447f8d8224b",
         "android_client_info": {
-          "package_name": "ie.setu.carkeyapp"
+          "package_name": "ie.setu.carkey"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyA_EPs3d3Yh1ZEN4v9FJF0sY_wGDOZU4IY"
+          "current_key": "AIzaSyAwtSaf8XnE_3dA_dhCgJaURtLZQ7hKTFY"
         }
       ],
       "services": {

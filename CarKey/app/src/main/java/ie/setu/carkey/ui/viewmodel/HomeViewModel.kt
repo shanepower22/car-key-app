@@ -84,6 +84,7 @@ class HomeViewModel @Inject constructor(
         repository.logEvent(
             VehicleEvent(
                 logId     = UUID.randomUUID().toString(),
+                timestamp = com.google.firebase.Timestamp.now(),
                 userId    = AuthManager.currentUid,
                 vehicleId = key.vehicleId,
                 action    = action,

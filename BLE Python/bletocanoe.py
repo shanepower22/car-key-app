@@ -8,7 +8,8 @@ import win32com.client
 import win32com.client.connect
 
 from bleak import BleakClient, BleakScanner
-from payload_parser import validate_payload
+from payload_parser import validate_payload, parse_payload
+from cloud import get_active_key, log_event
 
 
 #  
@@ -118,15 +119,35 @@ async def handle_ble():
                         raw = data.decode().strip()
                         print("BLE payload received:", raw)
 
+                        # step 1: validate payload format and timestamp
                         cmd, error = validate_payload(raw)
                         if error:
                             print(f"Payload rejected: {error}")
+                            parsed = parse_payload(raw)
+                            nonce = parsed["nonce"] if parsed else "unknown"
+                            log_event(user_id="unknown", action="UNKNOWN", result="FAILURE", nonce=nonce)
                             return
 
+                        parsed = parse_payload(raw)
+                        nonce = parsed["nonce"] if parsed else "unknown"
+
+                        # step 2: validate key is still active in Firestore
+                        active_key = get_active_key()
+                        if active_key is None:
+                            print("Command rejected: no active key found for this vehicle")
+                            log_event(user_id="unknown", action=cmd, result="FAILURE", nonce=nonce)
+                            return
+
+                        user_id = active_key.get("userId", "unknown")
+
+                        # step 3: forward to CANoe and log success
                         if cmd == "unlock":
                             sysvar_queue.put(("Vehicle", "DoorLock", 0))
                         elif cmd == "lock":
                             sysvar_queue.put(("Vehicle", "DoorLock", 1))
+
+                        log_event(user_id=user_id, action=cmd, result="SUCCESS", nonce=nonce)
+
                     except Exception as e:
                         print(f"Error handling BLE data: {e}")
 

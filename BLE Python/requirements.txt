@@ -1,0 +1,3 @@
+bleak
+firebase-admin
+pywin32

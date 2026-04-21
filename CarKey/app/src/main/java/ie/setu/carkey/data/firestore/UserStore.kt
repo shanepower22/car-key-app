@@ -14,7 +14,11 @@ object UserStore {
     fun getAllUsers(onResult: (List<UserModel>) -> Unit) {
         db.collection("users").get()
             .addOnSuccessListener { docs ->
-                val users = docs.mapNotNull { it.toObject(UserModel::class.java) }
+                val users = docs.mapNotNull { doc ->
+                    doc.toObject(UserModel::class.java)?.let { u ->
+                        if (u.uid.isBlank()) u.copy(uid = doc.id) else u
+                    }
+                }
                 Timber.i("Fetched ${users.size} users")
                 onResult(users)
             }

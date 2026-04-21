@@ -111,7 +111,7 @@ async def handle_ble():
         print("Connecting to BLE device:", target.name)
 
         try:
-            async with BleakClient(target.address) as client:
+            async with BleakClient(target.address, timeout=10.0) as client:
                 print("BLE connected")
 
                 def notification_handler(_, data: bytearray):
@@ -125,7 +125,8 @@ async def handle_ble():
                             print(f"Payload rejected: {error}")
                             parsed = parse_payload(raw)
                             nonce = parsed["nonce"] if parsed else "unknown"
-                            log_event(user_id="unknown", action="UNKNOWN", result="FAILURE", nonce=nonce)
+                            log_event(user_id="unknown", action="UNKNOWN", result="FAILURE",
+                                      nonce=nonce, failure_reason=error)
                             return
 
                         parsed = parse_payload(raw)
@@ -135,7 +136,8 @@ async def handle_ble():
                         active_key = get_active_key()
                         if active_key is None:
                             print("Command rejected: no active key found for this vehicle")
-                            log_event(user_id="unknown", action=cmd, result="FAILURE", nonce=nonce)
+                            log_event(user_id="unknown", action=cmd, result="FAILURE",
+                                      nonce=nonce, failure_reason="no active key")
                             return
 
                         user_id = active_key.get("userId", "unknown")
@@ -158,9 +160,9 @@ async def handle_ble():
                     await asyncio.sleep(1)
         except Exception as e:
             print(f"BLE connection error: {e}")
-            print("Reconnecting in 3 seconds...\n")
+            print("Rescanning in 3 seconds...\n")
             await asyncio.sleep(3)
-            target = None  # Force re-scan
+            target = None  # force re-scan so we don't retry a stale address
 
 
 def start_ble_thread():

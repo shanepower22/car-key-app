@@ -3,6 +3,7 @@ import time
 # maximum age of a valid payload in seconds
 # payloads older than this are rejected as potential replays
 PAYLOAD_MAX_AGE_SECONDS = 30
+CLOCK_SKEW_TOLERANCE_MS = 10_000  # allow 10s difference between phone and laptop clocks
 
 VALID_COMMANDS = {"unlock", "lock"}
 
@@ -42,7 +43,7 @@ def is_fresh(timestamp_ms: int, max_age_seconds: int = PAYLOAD_MAX_AGE_SECONDS) 
     """
     now_ms = time.time() * 1000
     age_ms = now_ms - timestamp_ms
-    return 0 <= age_ms <= (max_age_seconds * 1000)
+    return -CLOCK_SKEW_TOLERANCE_MS <= age_ms <= (max_age_seconds * 1000)
 
 
 def validate_payload(raw: str):

@@ -6,7 +6,7 @@ from firebase_admin import credentials, firestore
 SERVICE_ACCOUNT_PATH = "../dashboard/serviceAccountKey.json"
 
 # vehicle this VACU instance is associated with
-VEHICLE_ID = "vehicle_001"
+VEHICLE_ID = "vehicle_1"
 
 
 def init_firebase():
@@ -24,17 +24,25 @@ def get_active_key(vehicle_id: str = VEHICLE_ID):
     Returns the active DigitalKey document for this vehicle, or None.
     Used to verify a key exists and is not revoked before acting on a command.
     """
+    from google.cloud.firestore_v1.base_query import FieldFilter
     docs = (
         db.collection("digitalKeys")
-        .where("vehicleId", "==", vehicle_id)
-        .where("status", "==", "ACTIVE")
+        .where(filter=FieldFilter("vehicleId", "==", vehicle_id))
+        .where(filter=FieldFilter("status", "==", "ACTIVE"))
         .limit(1)
         .get()
     )
     return docs[0].to_dict() if docs else None
 
 
-def log_event(user_id: str, action: str, result: str, nonce: str, vehicle_id: str = VEHICLE_ID):
+def log_event(
+    user_id: str,
+    action: str,
+    result: str,
+    nonce: str,
+    vehicle_id: str = VEHICLE_ID,
+    failure_reason: str = None
+):
     event = {
         "logId":     str(uuid.uuid4()),
         "timestamp": firestore.SERVER_TIMESTAMP,
@@ -45,5 +53,8 @@ def log_event(user_id: str, action: str, result: str, nonce: str, vehicle_id: st
         "nonce":     nonce,
         "source":    "VACU"
     }
+    if failure_reason:
+        event["failureReason"] = failure_reason
     db.collection("vehicleEvents").add(event)
-    print(f"Event logged: {action.upper()} {result.upper()} for vehicle {vehicle_id}")
+    print(f"Event logged: {action.upper()} {result.upper()} for vehicle {vehicle_id}"
+          + (f" — {failure_reason}" if failure_reason else ""))

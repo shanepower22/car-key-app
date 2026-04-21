@@ -43,15 +43,11 @@ class ManagerViewModel @Inject constructor(
 
     fun loadAll() {
         _uiState.value = _uiState.value.copy(isLoading = true)
-        repository.getAllUsers { users ->
-            _uiState.value = _uiState.value.copy(users = users)
-        }
-        repository.getAllVehicles { vehicles ->
-            _uiState.value = _uiState.value.copy(vehicles = vehicles)
-        }
-        repository.getAllKeys { keys ->
-            _uiState.value = _uiState.value.copy(keys = keys, isLoading = false)
-        }
+        var done = 0
+        fun checkDone() { if (++done == 3) _uiState.value = _uiState.value.copy(isLoading = false) }
+        repository.getAllUsers   { users    -> _uiState.value = _uiState.value.copy(users = users);       checkDone() }
+        repository.getAllVehicles{ vehicles -> _uiState.value = _uiState.value.copy(vehicles = vehicles); checkDone() }
+        repository.getAllKeys    { keys     -> _uiState.value = _uiState.value.copy(keys = keys);         checkDone() }
     }
 
     fun loadEvents() {
@@ -85,7 +81,8 @@ class ManagerViewModel @Inject constructor(
             userId = userId,
             vehicleId = vehicleId,
             status = KeyStatus.ACTIVE,
-            expiryDate = expiryTimestamp
+            expiryDate = expiryTimestamp,
+            hmacSecret = UUID.randomUUID().toString().replace("-", "")
         )
         repository.assignKey(
             key = key,

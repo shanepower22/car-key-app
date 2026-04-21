@@ -149,6 +149,13 @@ private fun AssignKeyDialog(
     var selectedUserId by remember { mutableStateOf(users.firstOrNull()?.uid ?: "") }
     var selectedVehicleId by remember { mutableStateOf(vehicles.firstOrNull()?.vehicleId ?: "") }
 
+    LaunchedEffect(users) {
+        if (selectedUserId.isBlank()) selectedUserId = users.firstOrNull()?.uid ?: ""
+    }
+    LaunchedEffect(vehicles) {
+        if (selectedVehicleId.isBlank()) selectedVehicleId = vehicles.firstOrNull()?.vehicleId ?: ""
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Assign Key") },

@@ -10,7 +10,9 @@ object VehicleStore {
     fun getVehicle(vehicleId: String, onResult: (Vehicle?) -> Unit) {
         db.collection("vehicles").document(vehicleId).get()
             .addOnSuccessListener { doc ->
-                val vehicle = doc.toObject(Vehicle::class.java)
+                val vehicle = doc.toObject(Vehicle::class.java)?.let { v ->
+                    if (v.vehicleId.isBlank()) v.copy(vehicleId = doc.id) else v
+                }
                 Timber.i("Vehicle fetched: ${vehicle?.vehicleId}")
                 onResult(vehicle)
             }
@@ -23,7 +25,11 @@ object VehicleStore {
     fun getAllVehicles(onResult: (List<Vehicle>) -> Unit) {
         db.collection("vehicles").get()
             .addOnSuccessListener { docs ->
-                val vehicles = docs.mapNotNull { it.toObject(Vehicle::class.java) }
+                val vehicles = docs.mapNotNull { doc ->
+                    doc.toObject(Vehicle::class.java)?.let { v ->
+                        if (v.vehicleId.isBlank()) v.copy(vehicleId = doc.id) else v
+                    }
+                }
                 Timber.i("Fetched ${vehicles.size} vehicles")
                 onResult(vehicles)
             }

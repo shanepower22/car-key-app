@@ -29,7 +29,7 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Car Key",
+            text = "GoKey",
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary
         )
@@ -37,7 +37,7 @@ fun LoginScreen(
         Spacer(Modifier.height(6.dp))
 
         Text(
-            text = "Sign in to your digital key",
+            text = "Sign in to your GoKey account",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

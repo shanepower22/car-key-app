@@ -29,7 +29,11 @@ object EventStore {
             .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .get()
             .addOnSuccessListener { docs ->
-                val events = docs.mapNotNull { it.toObject(VehicleEvent::class.java) }
+                val events = docs.mapNotNull { doc ->
+                    runCatching { doc.toObject(VehicleEvent::class.java) }
+                        .onFailure { Timber.w("Skipping malformed event doc ${doc.id}: ${it.message}") }
+                        .getOrNull()
+                }
                 Timber.i("Fetched ${events.size} events")
                 onResult(events)
             }

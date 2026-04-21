@@ -2,7 +2,7 @@ package ie.setu.carkey.data
 
 import com.google.firebase.Timestamp
 
-enum class VehicleAction { UNLOCK, LOCK }
+enum class VehicleAction { UNLOCK, LOCK, UNKNOWN }
 enum class EventResult   { SUCCESS, FAILURE }
 
 data class VehicleEvent(

@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopAppBarProvider(
-    title: String = "Car Key",
+    title: String = "GoKey",
     onMenuClick: () -> Unit = {}
 ) {
     TopAppBar(

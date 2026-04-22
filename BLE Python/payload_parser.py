@@ -1,4 +1,7 @@
 import time
+import hmac as _hmac
+import hashlib
+import base64
 
 # maximum age of a valid payload in seconds
 # payloads older than this are rejected as potential replays
@@ -44,6 +47,18 @@ def is_fresh(timestamp_ms: int, max_age_seconds: int = PAYLOAD_MAX_AGE_SECONDS) 
     now_ms = time.time() * 1000
     age_ms = now_ms - timestamp_ms
     return -CLOCK_SKEW_TOLERANCE_MS <= age_ms <= (max_age_seconds * 1000)
+
+
+def sign_payload(data: str, secret: str) -> str:
+    """Sign {command}:{nonce}:{timestamp} with the given HMAC secret."""
+    mac = _hmac.new(secret.encode(), data.encode(), hashlib.sha256)
+    return base64.b64encode(mac.digest()).decode()
+
+
+def verify_signature(data: str, signature: str, secret: str) -> bool:
+    """Returns True if the signature matches the expected HMAC for data."""
+    expected = sign_payload(data, secret)
+    return _hmac.compare_digest(expected, signature)
 
 
 def validate_payload(raw: str):

@@ -1,21 +1,18 @@
 package ie.setu.carkey.security
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import java.security.KeyStore
 import android.util.Base64
 import java.util.UUID
-import javax.crypto.KeyGenerator
 import javax.crypto.Mac
-import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 
 // payload format: {command}:{nonce}:{timestamp}:{hmac_signature}
 // e.g. unlock:a1b2c3d4:1712345678901:Xyz123==
-// HMAC key is generated once and stored in Android Keystore
+// HMAC secret is provisioned per-key by the manager and stored in Firestore.
+// HomeViewModel loads it from the active DigitalKey and sets it here before any command is sent.
 object SecurityManager {
 
-    private const val KEY_ALIAS = "carkey_hmac_key"
-    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
+    // set by HomeViewModel once the active key is loaded from Firestore
+    var hmacKey: String = ""
 
     fun buildPayload(command: String): String {
         val nonce = generateNonce()
@@ -52,25 +49,12 @@ object SecurityManager {
     }
 
     private fun sign(data: String): String {
+        val keyBytes = hmacKey.toByteArray(Charsets.UTF_8)
+        val secretKey = SecretKeySpec(keyBytes, "HmacSHA256")
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(getOrCreateKey())
+        mac.init(secretKey)
         val bytes = mac.doFinal(data.toByteArray(Charsets.UTF_8))
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
-    }
-
-    private fun getOrCreateKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
-        keyStore.getKey(KEY_ALIAS, null)?.let { return it as SecretKey }
-
-        val keyGen = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_HMAC_SHA256,
-            KEYSTORE_PROVIDER
-        )
-        keyGen.init(
-            KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_SIGN)
-                .build()
-        )
-        return keyGen.generateKey()
     }
 
     data class PayloadComponents(

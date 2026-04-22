@@ -10,6 +10,7 @@ import ie.setu.carkey.data.VehicleAction
 import ie.setu.carkey.data.VehicleEvent
 import ie.setu.carkey.data.login.AuthManager
 import ie.setu.carkey.data.repository.FirebaseRepository
+import ie.setu.carkey.security.SecurityManager
 import ie.setu.carkey.service.BleManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,6 +52,7 @@ class HomeViewModel @Inject constructor(
                 return@getKeyForUser
             }
             _uiState.value = _uiState.value.copy(key = key)
+            SecurityManager.hmacKey = key.hmacSecret
             repository.getVehicle(key.vehicleId) { vehicle ->
                 _uiState.value = _uiState.value.copy(vehicle = vehicle, isLoading = false)
                 Timber.i("Loaded vehicle: ${vehicle?.vehicleId}, key: ${key.keyId}")

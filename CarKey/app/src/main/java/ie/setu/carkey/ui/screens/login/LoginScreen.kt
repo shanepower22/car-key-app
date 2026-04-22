@@ -5,10 +5,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import ie.setu.carkey.data.login.Credentials
 import ie.setu.carkey.data.login.UserRole
+import ie.setu.carkey.security.BiometricHelper
 import ie.setu.carkey.ui.components.login.LoginField
 import ie.setu.carkey.ui.components.login.PasswordField
 import ie.setu.carkey.ui.viewmodel.AuthViewModel
@@ -20,6 +23,24 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var credentials by remember { mutableStateOf(Credentials()) }
+
+    val activity = LocalContext.current as FragmentActivity
+
+    // If a session is already active, gate with biometric instead of showing the form
+    LaunchedEffect(Unit) {
+        if (viewModel.isSignedIn) {
+            if (BiometricHelper.isAvailable(activity)) {
+                BiometricHelper.authenticate(
+                    activity = activity,
+                    onSuccess = { viewModel.resolveRole(onLoginSuccess) },
+                    onFallback = { /* stay on screen — user can sign in with password */ }
+                )
+            } else {
+                viewModel.resolveRole(onLoginSuccess)
+            }
+        }
+    }
+
 
     Column(
         modifier = Modifier

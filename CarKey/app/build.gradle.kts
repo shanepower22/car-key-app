@@ -69,6 +69,10 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // Biometric
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.appcompat)
+
     // Logging
     implementation(libs.timber)
 

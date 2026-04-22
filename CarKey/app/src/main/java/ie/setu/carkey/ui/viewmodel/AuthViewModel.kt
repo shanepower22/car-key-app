@@ -37,5 +37,11 @@ class AuthViewModel @Inject constructor() : ViewModel() {
         )
     }
 
+    fun resolveRole(onSuccess: (UserRole) -> Unit) {
+        AuthManager.fetchRole(onSuccess) { msg ->
+            _uiState.value = AuthUiState(error = msg)
+        }
+    }
+
     fun signOut() = AuthManager.signOut()
 }

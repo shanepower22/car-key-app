@@ -13,7 +13,7 @@ import hmac
 import hashlib
 import base64
 import uuid
-from payload_parser import validate_payload, parse_payload, PAYLOAD_MAX_AGE_SECONDS
+from payload_parser import validate_payload, parse_payload, verify_signature, sign_payload, PAYLOAD_MAX_AGE_SECONDS
 from cloud import log_event, get_active_key, VEHICLE_ID
 
 
@@ -57,6 +57,19 @@ def run_through_vacu(raw: str, label: str):
         print(f"  REJECTED by VACU: no active key for vehicle {VEHICLE_ID}")
         return
 
+    hmac_secret = active_key.get("hmacSecret", "")
+    sig_data = f"{parsed['command']}:{parsed['nonce']}:{parsed['timestamp']}"
+    if not verify_signature(sig_data, parsed["signature"], hmac_secret):
+        log_event(
+            user_id="attacker",
+            action=cmd,
+            result="FAILURE",
+            nonce=nonce,
+            failure_reason="invalid signature"
+        )
+        print(f"  REJECTED by VACU: invalid signature")
+        return
+
     print(f"  WARNING: payload accepted — check your test setup")
 
 
@@ -79,15 +92,28 @@ def simulate_replay_attack():
 
 def simulate_tamper_attack():
     section("ATTACK 2: Payload Tampering")
-    print("Scenario: attacker intercepts a valid payload and changes the command")
-    print("          from 'lock' to 'unlock'. The HMAC signature no longer matches.\n")
+    print("Scenario: attacker intercepts a valid 'lock' payload and flips the command")
+    print("          to 'unlock'. The original HMAC signature no longer matches.\n")
 
-    # valid-looking 4-part payload but with a bad signature
+    active_key = get_active_key()
+    if not active_key:
+        print("  No active key found — assign a key in the Manager App first")
+        return
+
+    secret = active_key.get("hmacSecret", "")
     nonce = uuid.uuid4().hex
     timestamp = int(time.time() * 1000)
-    payload = f"unlock:{nonce}:{timestamp}:tampered_sig_abc123=="
 
-    run_through_vacu(payload, "Payload with invalid HMAC signature")
+    # build a legitimately signed "lock" payload
+    original_data = f"lock:{nonce}:{timestamp}"
+    sig = sign_payload(original_data, secret)
+    print(f"  Original (signed):  lock:{nonce[:8]}...:{timestamp}:{sig[:12]}...")
+
+    # tamper: flip command to "unlock", signature now invalid
+    tampered = f"unlock:{nonce}:{timestamp}:{sig}"
+    print(f"  Tampered (flipped): unlock:{nonce[:8]}...:{timestamp}:{sig[:12]}...")
+
+    run_through_vacu(tampered, "Tampered payload — command changed, signature invalid")
 
 
 # ── Attack 3: Malformed Payload ───────────────────────────────────────────────

@@ -8,7 +8,7 @@ import win32com.client
 import win32com.client.connect
 
 from bleak import BleakClient, BleakScanner
-from payload_parser import validate_payload, parse_payload
+from payload_parser import validate_payload, parse_payload, verify_signature
 from cloud import get_active_key, log_event
 
 
@@ -142,7 +142,16 @@ async def handle_ble():
 
                         user_id = active_key.get("userId", "unknown")
 
-                        # step 3: forward to CANoe and log success
+                        # step 3: verify HMAC signature against the key's secret
+                        hmac_secret = active_key.get("hmacSecret", "")
+                        sig_data = f"{parsed['command']}:{parsed['nonce']}:{parsed['timestamp']}"
+                        if not verify_signature(sig_data, parsed["signature"], hmac_secret):
+                            print("Command rejected: invalid HMAC signature")
+                            log_event(user_id=user_id, action=cmd, result="FAILURE",
+                                      nonce=nonce, failure_reason="invalid signature")
+                            return
+
+                        # step 4: forward to CANoe and log success
                         if cmd == "unlock":
                             sysvar_queue.put(("Vehicle", "DoorLock", 0))
                         elif cmd == "lock":

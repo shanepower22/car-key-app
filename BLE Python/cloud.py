@@ -1,4 +1,5 @@
 import uuid
+import time
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -19,12 +20,20 @@ def init_firebase():
 db = init_firebase()
 
 
+_key_cache: dict = {"key": None, "fetched_at": 0.0}
+KEY_CACHE_TTL = 10  # seconds — revocation takes effect within this window
+
+
 def get_active_key(vehicle_id: str = VEHICLE_ID):
     """
     Returns the active DigitalKey document for this vehicle, or None.
-    Used to verify a key exists and is not revoked before acting on a command.
+    Cached for KEY_CACHE_TTL seconds to avoid Firestore quota exhaustion.
     """
     from google.cloud.firestore_v1.base_query import FieldFilter
+
+    if time.time() - _key_cache["fetched_at"] < KEY_CACHE_TTL:
+        return _key_cache["key"]
+
     docs = (
         db.collection("digitalKeys")
         .where(filter=FieldFilter("vehicleId", "==", vehicle_id))
@@ -32,7 +41,10 @@ def get_active_key(vehicle_id: str = VEHICLE_ID):
         .limit(1)
         .get()
     )
-    return docs[0].to_dict() if docs else None
+    result = docs[0].to_dict() if docs else None
+    _key_cache["key"] = result
+    _key_cache["fetched_at"] = time.time()
+    return result
 
 
 def log_event(

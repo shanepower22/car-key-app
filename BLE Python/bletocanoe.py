@@ -162,7 +162,15 @@ async def handle_ble():
                     except Exception as e:
                         print(f"Error handling BLE data: {e}")
 
-                await client.start_notify(BLE_CHARACTERISTIC_UUID, notification_handler)
+                char = next(
+                    (c for s in client.services for c in s.characteristics
+                     if c.uuid == BLE_CHARACTERISTIC_UUID.lower()),
+                    None
+                )
+                if char is None:
+                    print("Characteristic not found — check UUID")
+                    break
+                await client.start_notify(char.handle, notification_handler)
 
                 print("Listening for BLE lock/unlock commands...")
                 while True:

@@ -10,6 +10,30 @@ CLOCK_SKEW_TOLERANCE_MS = 10_000  # allow 10s difference between phone and lapto
 
 VALID_COMMANDS = {"unlock", "lock"}
 
+# nonce cache: maps nonce string -> timestamp_ms when first seen
+# entries are evicted once they fall outside the replay window
+_seen_nonces: dict[str, int] = {}
+
+
+def _evict_expired_nonces() -> None:
+    """Remove nonces that are now outside the replay window."""
+    cutoff_ms = (time.time() - PAYLOAD_MAX_AGE_SECONDS) * 1000
+    expired = [n for n, t in _seen_nonces.items() if t < cutoff_ms]
+    for n in expired:
+        del _seen_nonces[n]
+
+
+def is_unique_nonce(nonce: str, timestamp_ms: int) -> bool:
+    """
+    Returns True if this nonce has not been seen before within the replay window.
+    Registers the nonce on first use so subsequent identical payloads are rejected.
+    """
+    _evict_expired_nonces()
+    if nonce in _seen_nonces:
+        return False
+    _seen_nonces[nonce] = timestamp_ms
+    return True
+
 
 def parse_payload(raw: str):
     """
@@ -74,4 +98,6 @@ def validate_payload(raw: str):
         return None, f"unknown command: {parsed['command']}"
     if not is_fresh(parsed["timestamp"]):
         return None, "payload expired or timestamp out of range"
+    if not is_unique_nonce(parsed["nonce"], parsed["timestamp"]):
+        return None, "replayed nonce"
     return parsed["command"], None

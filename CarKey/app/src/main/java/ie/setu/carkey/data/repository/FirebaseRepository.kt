@@ -25,6 +25,9 @@ class FirebaseRepository @Inject constructor() {
     fun logEvent(event: VehicleEvent, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) =
         EventStore.logEvent(event, onSuccess, onError)
 
+    fun updatePublicKey(uid: String, publicKey: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) =
+        UserStore.updatePublicKey(uid, publicKey, onSuccess, onError)
+
     // manager
     fun getAllUsers(onResult: (List<UserModel>) -> Unit) =
         UserStore.getAllUsers(onResult)

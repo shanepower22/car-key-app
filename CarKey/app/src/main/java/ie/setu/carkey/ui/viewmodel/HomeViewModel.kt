@@ -37,8 +37,19 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
+        registerPublicKey()
         loadKeyAndVehicle()
         observeBleConnection()
+    }
+
+    // ensures a hardware-backed key pair exists for this user and registers
+    // the public key against their Firestore profile so the VACU can verify signatures.
+    private fun registerPublicKey() {
+        val uid = AuthManager.currentUid
+        if (uid.isBlank()) return
+        SecurityManager.activeUid = uid
+        val publicKey = SecurityManager.getPublicKeyBase64(uid)
+        repository.updatePublicKey(uid, publicKey)
     }
 
     private fun loadKeyAndVehicle() {
@@ -52,7 +63,6 @@ class HomeViewModel @Inject constructor(
                 return@getKeyForUser
             }
             _uiState.value = _uiState.value.copy(key = key)
-            SecurityManager.hmacKey = key.hmacSecret
             repository.getVehicle(key.vehicleId) { vehicle ->
                 _uiState.value = _uiState.value.copy(vehicle = vehicle, isLoading = false)
                 Timber.i("Loaded vehicle: ${vehicle?.vehicleId}, key: ${key.keyId}")

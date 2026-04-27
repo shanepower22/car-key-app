@@ -25,11 +25,15 @@ object SecurityManager {
 
     var hmacKey: String = ""
 
+    // set by HomeViewModel after the user signs in - used to look up the
+    // correct key in the Android Keystore.
+    var activeUid: String = ""
+
     fun buildPayload(command: String): String {
         val nonce = generateNonce()
         val timestamp = System.currentTimeMillis()
         val data = "$command:$nonce:$timestamp"
-        val signature = sign(data)
+        val signature = signEcdsa(data, activeUid)
         return "$data:$signature"
     }
 

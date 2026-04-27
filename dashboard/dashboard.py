@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 
 st.set_page_config(page_title="GoKey Dashboard", layout="wide")
 
-st_autorefresh(interval=10_000, key="dashboard_refresh")
+st_autorefresh(interval=30_000, key="dashboard_refresh")
 
 
 @st.cache_resource
@@ -22,6 +22,7 @@ def init_firebase():
 db = init_firebase()
 
 
+@st.cache_data(ttl=10)
 def fetch_collection(collection: str) -> list[dict]:
     docs = db.collection(collection).get()
     return [doc.to_dict() for doc in docs]
@@ -168,15 +169,38 @@ if failures:
         st.markdown("**Failed Attempts Timeline**")
         df_fail_ts = df_fail.dropna(subset=["datetime"])
         if not df_fail_ts.empty:
-            df_fail_ts["hour"] = df_fail_ts["datetime"].dt.strftime("%Y-%m-%d %H:00")
-            df_fail_ts = df_fail_ts.dropna(subset=["hour"])
-            hourly = df_fail_ts.groupby(["hour", "failureReason"]).size().reset_index(name="count")
-            fig_sec = px.bar(
-                hourly, x="hour", y="count", color="failureReason",
-                labels={"hour": "Time", "count": "Failures", "failureReason": "Reason"}
+            range_options = {"1 Day": 1, "3 Days": 3, "1 Week": 7, "1 Month": 30}
+            selected_range = st.radio(
+                "Time range", list(range_options.keys()),
+                horizontal=True, index=0, label_visibility="collapsed"
             )
-            fig_sec.update_layout(margin=dict(t=20, b=20))
-            st.plotly_chart(fig_sec, use_container_width=True)
+            cutoff = now - timedelta(days=range_options[selected_range])
+            df_fail_ts = df_fail_ts[df_fail_ts["datetime"] >= cutoff]
+
+            if df_fail_ts.empty:
+                st.info(f"No failures in the last {selected_range.lower()}.")
+            else:
+                # use minute buckets for 1-day view, hour buckets beyond that
+                if range_options[selected_range] <= 1:
+                    df_fail_ts["bucket"] = df_fail_ts["datetime"].dt.strftime("%H:%M")
+                    x_label = "Time (HH:MM)"
+                elif range_options[selected_range] <= 7:
+                    df_fail_ts["bucket"] = df_fail_ts["datetime"].dt.strftime("%d %b %H:%M")
+                    x_label = "Time"
+                else:
+                    df_fail_ts["bucket"] = df_fail_ts["datetime"].dt.strftime("%d %b")
+                    x_label = "Date"
+
+                df_fail_ts = df_fail_ts.sort_values("datetime")
+                bucket_order = df_fail_ts["bucket"].unique().tolist()
+                by_bucket = df_fail_ts.groupby(["bucket", "failureReason"]).size().reset_index(name="count")
+                fig_sec = px.bar(
+                    by_bucket, x="bucket", y="count", color="failureReason",
+                    category_orders={"bucket": bucket_order},
+                    labels={"bucket": x_label, "count": "Failures", "failureReason": "Reason"}
+                )
+                fig_sec.update_layout(margin=dict(t=20, b=20))
+                st.plotly_chart(fig_sec, use_container_width=True)
 else:
     st.success("No failed access attempts recorded.")
 
@@ -188,17 +212,23 @@ st.subheader("Recent Events")
 
 if events:
     df_display = pd.DataFrame(events)
-    cols = ["timestamp", "userId", "vehicleId", "action", "result", "source"]
+    cols = ["timestamp", "userId", "vehicleId", "action", "result", "source", "failureReason"]
     for c in cols:
         if c not in df_display.columns:
-            df_display[c] = "—"
+            df_display[c] = ""
+    df_display["failureReason"] = df_display["failureReason"].fillna("")
 
-    df_display["timestamp"] = pd.to_datetime(
+    df_display["_dt"] = pd.to_datetime(
         df_display["timestamp"].apply(parse_timestamp), utc=True, errors="coerce"
-    ).dt.strftime("%Y-%m-%d %H:%M:%S").fillna("Unknown")
+    )
+    df_display["timestamp"] = df_display["_dt"].dt.strftime("%Y-%m-%d %H:%M:%S").fillna("Unknown")
     df_display["source"] = df_display["source"].fillna("App")
-    df_display = df_display[cols].sort_values("timestamp", ascending=False).head(20)
-    df_display.columns = ["Time", "User ID", "Vehicle ID", "Action", "Result", "Source"]
+    df_display = (
+        df_display[cols + ["_dt"]]
+        .sort_values("_dt", ascending=False, na_position="last")
+        .head(20)[cols]
+    )
+    df_display.columns = ["Time", "User ID", "Vehicle ID", "Action", "Result", "Source", "Failure Reason"]
 
     def highlight_failures(row):
         if row["Result"] == "FAILURE":

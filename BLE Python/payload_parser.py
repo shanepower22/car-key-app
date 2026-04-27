@@ -3,6 +3,10 @@ import hmac as _hmac
 import hashlib
 import base64
 
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.exceptions import InvalidSignature
+
 # maximum age of a valid payload in seconds
 # payloads older than this are rejected as potential replays
 PAYLOAD_MAX_AGE_SECONDS = 30
@@ -83,6 +87,24 @@ def verify_signature(data: str, signature: str, secret: str) -> bool:
     """Returns True if the signature matches the expected HMAC for data."""
     expected = sign_payload(data, secret)
     return _hmac.compare_digest(expected, signature)
+
+
+def verify_ecdsa_signature(data: str, signature_b64: str, public_key_b64: str) -> bool:
+    """
+    Verify an ECDSA P-256 / SHA-256 signature against an X.509
+    SubjectPublicKeyInfo public key, both base64 encoded.
+    Returns False on any verification failure.
+    """
+    try:
+        public_key = serialization.load_der_public_key(base64.b64decode(public_key_b64))
+        public_key.verify(
+            base64.b64decode(signature_b64),
+            data.encode(),
+            ec.ECDSA(hashes.SHA256())
+        )
+        return True
+    except InvalidSignature:
+        return False
 
 
 def validate_payload(raw: str):

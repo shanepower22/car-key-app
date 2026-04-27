@@ -9,12 +9,9 @@ Usage:
 """
 
 import time
-import hmac
-import hashlib
-import base64
 import uuid
-from payload_parser import validate_payload, parse_payload, verify_signature, sign_payload, PAYLOAD_MAX_AGE_SECONDS
-from cloud import log_event, get_active_key, VEHICLE_ID
+from payload_parser import validate_payload, parse_payload, verify_ecdsa_signature, PAYLOAD_MAX_AGE_SECONDS
+from cloud import log_event, get_active_key, get_user_public_key, VEHICLE_ID
 
 
 def section(title: str):
@@ -57,9 +54,21 @@ def run_through_vacu(raw: str, label: str):
         print(f"  REJECTED by VACU: no active key for vehicle {VEHICLE_ID}")
         return
 
-    hmac_secret = active_key.get("hmacSecret", "")
+    user_id = active_key.get("userId", "unknown")
+    public_key = get_user_public_key(user_id)
+    if public_key is None:
+        log_event(
+            user_id="attacker",
+            action=cmd,
+            result="FAILURE",
+            nonce=nonce,
+            failure_reason="no public key registered"
+        )
+        print(f"  REJECTED by VACU: no public key registered for user {user_id}")
+        return
+
     sig_data = f"{parsed['command']}:{parsed['nonce']}:{parsed['timestamp']}"
-    if not verify_signature(sig_data, parsed["signature"], hmac_secret):
+    if not verify_ecdsa_signature(sig_data, parsed["signature"], public_key):
         log_event(
             user_id="attacker",
             action=cmd,
@@ -90,25 +99,21 @@ def simulate_replay_attack():
 
     # --- Sub-attack 1b: same-nonce replay within the valid window ---
     print("\nScenario B: attacker captures a fresh, valid payload and immediately")
-    print("            retransmits it before the timestamp window closes.\n")
+    print("            retransmits it before the timestamp window closes.")
+    print("            Paste a real payload captured from the phone (BLE log).\n")
+    print("            ECDSA private keys live in the Android Keystore, so a")
+    print("            valid payload cannot be synthesised from Python.\n")
 
-    active_key = get_active_key()
-    if not active_key:
-        print("  No active key found - assign a key in the Manager App first")
+    captured = input("  Paste captured payload (or Enter to skip): ").strip()
+    if not captured:
+        print("  Skipped.")
         return
 
-    secret = active_key.get("hmacSecret", "")
-    fresh_nonce = uuid.uuid4().hex
-    timestamp = int(time.time() * 1000)
-    sig_data = f"unlock:{fresh_nonce}:{timestamp}"
-    sig = sign_payload(sig_data, secret)
-    valid_payload = f"unlock:{fresh_nonce}:{timestamp}:{sig}"
-
-    print(f"  First transmission (legitimate user):")
-    run_through_vacu(valid_payload, "Original payload - should be accepted")
+    print(f"\n  First transmission (genuine payload):")
+    run_through_vacu(captured, "Original payload - should be accepted")
 
     print(f"\n  Second transmission (attacker replay - same nonce, still within window):")
-    run_through_vacu(valid_payload, "Replayed payload - nonce already seen")
+    run_through_vacu(captured, "Replayed payload - nonce already seen")
 
 
 # ── Attack 2: Tampered Payload ────────────────────────────────────────────────
@@ -116,27 +121,25 @@ def simulate_replay_attack():
 def simulate_tamper_attack():
     section("ATTACK 2: Payload Tampering")
     print("Scenario: attacker intercepts a valid 'lock' payload and flips the command")
-    print("          to 'unlock'. The original HMAC signature no longer matches.\n")
+    print("          to 'unlock'. The original ECDSA signature no longer matches.")
+    print("          Paste a real captured payload from the phone (BLE log).\n")
 
-    active_key = get_active_key()
-    if not active_key:
-        print("  No active key found — assign a key in the Manager App first")
+    captured = input("  Paste captured 'lock' payload (or Enter to skip): ").strip()
+    if not captured:
+        print("  Skipped.")
         return
 
-    secret = active_key.get("hmacSecret", "")
-    nonce = uuid.uuid4().hex
-    timestamp = int(time.time() * 1000)
+    parsed = parse_payload(captured)
+    if not parsed:
+        print("  Captured payload is malformed - aborting.")
+        return
 
-    # build a legitimately signed "lock" payload
-    original_data = f"lock:{nonce}:{timestamp}"
-    sig = sign_payload(original_data, secret)
-    print(f"  Original (signed):  lock:{nonce[:8]}...:{timestamp}:{sig[:12]}...")
+    # tamper: flip command, keep original signature - verification must fail
+    tampered = f"unlock:{parsed['nonce']}:{parsed['timestamp']}:{parsed['signature']}"
+    print(f"  Original:  {parsed['command']}:{parsed['nonce'][:8]}...:{parsed['timestamp']}:{parsed['signature'][:12]}...")
+    print(f"  Tampered:  unlock:{parsed['nonce'][:8]}...:{parsed['timestamp']}:{parsed['signature'][:12]}...")
 
-    # tamper: flip command to "unlock", signature now invalid
-    tampered = f"unlock:{nonce}:{timestamp}:{sig}"
-    print(f"  Tampered (flipped): unlock:{nonce[:8]}...:{timestamp}:{sig[:12]}...")
-
-    run_through_vacu(tampered, "Tampered payload — command changed, signature invalid")
+    run_through_vacu(tampered, "Tampered payload - command changed, signature invalid")
 
 
 # ── Attack 3: Malformed Payload ───────────────────────────────────────────────

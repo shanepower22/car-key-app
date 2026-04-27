@@ -8,8 +8,7 @@ data class DigitalKey(
     val userId: String = "",
     val status: KeyStatus = KeyStatus.ACTIVE,
     val expiryDate: Timestamp? = null,
-    val permissions: List<String> = emptyList(),
-    val hmacSecret: String = ""
+    val permissions: List<String> = emptyList()
 ) {
     fun isUsable(): Boolean {
         if (status != KeyStatus.ACTIVE) return false

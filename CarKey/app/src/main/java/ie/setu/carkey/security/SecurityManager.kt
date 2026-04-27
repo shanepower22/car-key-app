@@ -10,8 +10,6 @@ import java.security.PrivateKey
 import java.security.Signature
 import java.security.spec.ECGenParameterSpec
 import java.util.UUID
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 // payload format: {command}:{nonce}:{timestamp}:{signature}
 // signature is ECDSA P-256 with SHA-256, signed by a hardware-backed private key
@@ -21,9 +19,6 @@ object SecurityManager {
 
     private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
     private const val KEY_ALIAS_PREFIX = "gokey_signing_key_"
-
-
-    var hmacKey: String = ""
 
     // set by HomeViewModel after the user signs in - used to look up the
     // correct key in the Android Keystore.
@@ -41,35 +36,18 @@ object SecurityManager {
     fun generateNonce(): String =
         UUID.randomUUID().toString().replace("-", "")
 
-    // returns null if format is invalid or signature verification fails
+    // Structural parser - splits the payload but does not verify the signature.
+    // Verification is the VACU's job (it holds the public key), the phone has no
+    // need to validate payloads.
     fun parsePayload(payload: String): PayloadComponents? {
         val parts = payload.split(":")
         if (parts.size != 4) return null
         val timestamp = parts[2].toLongOrNull() ?: return null
-        val data = "${parts[0]}:${parts[1]}:${parts[2]}"
-        if (!verifySignature(data, parts[3])) return null
         return PayloadComponents(
             command = parts[0],
             nonce = parts[1],
             timestamp = timestamp
         )
-    }
-
-    fun verifySignature(data: String, signature: String): Boolean {
-        return try {
-            sign(data) == signature
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun sign(data: String): String {
-        val keyBytes = hmacKey.toByteArray(Charsets.UTF_8)
-        val secretKey = SecretKeySpec(keyBytes, "HmacSHA256")
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(secretKey)
-        val bytes = mac.doFinal(data.toByteArray(Charsets.UTF_8))
-        return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
     data class PayloadComponents(

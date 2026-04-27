@@ -81,8 +81,7 @@ class ManagerViewModel @Inject constructor(
             userId = userId,
             vehicleId = vehicleId,
             status = KeyStatus.ACTIVE,
-            expiryDate = expiryTimestamp,
-            hmacSecret = UUID.randomUUID().toString().replace("-", "")
+            expiryDate = expiryTimestamp
         )
         repository.assignKey(
             key = key,

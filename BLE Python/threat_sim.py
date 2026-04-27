@@ -77,15 +77,38 @@ def run_through_vacu(raw: str, label: str):
 
 def simulate_replay_attack():
     section("ATTACK 1: Replay Attack")
-    print("Scenario: attacker captures a valid payload and replays it after the")
-    print(f"          {PAYLOAD_MAX_AGE_SECONDS}-second validity window has expired.\n")
 
-    # build a payload with a timestamp that's already expired
+    # --- Sub-attack 1a: expired timestamp ---
+    print("Scenario A: attacker captures a valid payload and replays it after the")
+    print(f"            {PAYLOAD_MAX_AGE_SECONDS}-second validity window has expired.\n")
+
     old_timestamp = int(time.time() * 1000) - ((PAYLOAD_MAX_AGE_SECONDS + 10) * 1000)
     nonce = uuid.uuid4().hex
-    payload = f"unlock:{nonce}:{old_timestamp}:replayed_signature=="
+    expired_payload = f"unlock:{nonce}:{old_timestamp}:replayed_signature=="
 
-    run_through_vacu(payload, "Replayed expired payload")
+    run_through_vacu(expired_payload, "Replayed payload - timestamp expired")
+
+    # --- Sub-attack 1b: same-nonce replay within the valid window ---
+    print("\nScenario B: attacker captures a fresh, valid payload and immediately")
+    print("            retransmits it before the timestamp window closes.\n")
+
+    active_key = get_active_key()
+    if not active_key:
+        print("  No active key found - assign a key in the Manager App first")
+        return
+
+    secret = active_key.get("hmacSecret", "")
+    fresh_nonce = uuid.uuid4().hex
+    timestamp = int(time.time() * 1000)
+    sig_data = f"unlock:{fresh_nonce}:{timestamp}"
+    sig = sign_payload(sig_data, secret)
+    valid_payload = f"unlock:{fresh_nonce}:{timestamp}:{sig}"
+
+    print(f"  First transmission (legitimate user):")
+    run_through_vacu(valid_payload, "Original payload - should be accepted")
+
+    print(f"\n  Second transmission (attacker replay - same nonce, still within window):")
+    run_through_vacu(valid_payload, "Replayed payload - nonce already seen")
 
 
 # ── Attack 2: Tampered Payload ────────────────────────────────────────────────

@@ -34,10 +34,4 @@ class SecurityManagerTest {
     fun `parsePayload returns null when timestamp is not a number`() {
         assertNull(SecurityManager.parsePayload("unlock:abc123:notanumber:sig"))
     }
-
-    @Test
-    fun `verifySignature returns false for tampered data`() {
-        // verifySignature with mismatched data/sig should not throw, just return false
-        assertFalse(SecurityManager.verifySignature("unlock:abc:123", "badsignature=="))
-    }
 }

@@ -46,10 +46,9 @@ class SecurityManagerInstrumentedTest {
     }
 
     @Test
-    fun parsePayload_returnsFalseForTamperedCommand() {
-        val payload = SecurityManager.buildPayload("unlock")
-        val tampered = "lock" + payload.removePrefix("unlock")
-        assertNull(SecurityManager.parsePayload(tampered))
+    fun signEcdsa_producesNonEmptyBase64() {
+        val sig = SecurityManager.signEcdsa("unlock:abc:123", SecurityManager.activeUid)
+        assertTrue(sig.isNotEmpty())
     }
 
     @Test

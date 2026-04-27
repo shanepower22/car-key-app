@@ -23,6 +23,28 @@ db = init_firebase()
 _key_cache: dict = {"key": None, "fetched_at": 0.0}
 KEY_CACHE_TTL = 10  # seconds — revocation takes effect within this window
 
+_public_key_cache: dict = {}  # user_id -> (public_key, fetched_at)
+PUBLIC_KEY_CACHE_TTL = 30
+
+
+def get_user_public_key(user_id: str):
+    """
+    Returns the registered ECDSA public key (base64 X.509 SPKI) for a user, or None.
+    Cached for PUBLIC_KEY_CACHE_TTL seconds.
+    """
+    cached = _public_key_cache.get(user_id)
+    if cached and time.time() - cached[1] < PUBLIC_KEY_CACHE_TTL:
+        return cached[0]
+
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        return None
+    public_key = doc.to_dict().get("publicKey")
+    if not public_key:
+        return None
+    _public_key_cache[user_id] = (public_key, time.time())
+    return public_key
+
 
 def get_active_key(vehicle_id: str = VEHICLE_ID):
     """

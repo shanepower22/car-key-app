@@ -11,6 +11,36 @@ import timber.log.Timber
 object UserStore {
     private val db = FirebaseFirestore.getInstance()
 
+    fun updatePublicKey(
+        uid: String,
+        publicKey: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        db.collection("users").document(uid)
+            .update("publicKey", publicKey)
+            .addOnSuccessListener {
+                Timber.i("Public key registered for user $uid")
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                Timber.e("Failed to update public key: ${e.message}")
+                onError(e.message ?: "Failed to register public key")
+            }
+    }
+
+    fun getUserPublicKey(uid: String, onResult: (String?) -> Unit) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { doc ->
+                val key = doc.getString("publicKey")
+                onResult(if (key.isNullOrBlank()) null else key)
+            }
+            .addOnFailureListener {
+                Timber.e("Failed to fetch public key: ${it.message}")
+                onResult(null)
+            }
+    }
+
     fun getAllUsers(onResult: (List<UserModel>) -> Unit) {
         db.collection("users").get()
             .addOnSuccessListener { docs ->

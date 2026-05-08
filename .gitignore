@@ -1,0 +1,36 @@
+# Secrets - never commit
+dashboard/serviceAccountKey.json
+**/serviceAccountKey.json
+*.pem
+*.key
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Word/Office temp files
+~$*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Build outputs
+slides/*.pptx
+build/
+dist/
+.gradle/

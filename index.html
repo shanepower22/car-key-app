@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Car Key System - Shane Power</title>
+    <title>GoKey - Smartphone Digital Car Key | Shane Power</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,13 +13,14 @@
             <img src="poster/SETU-logo.png" alt="SETU Logo">
         </div>
         <div class="header-text">
-            <h1>Digital Car Key System</h1>
+            <h1>GoKey: Smartphone Digital Car Key</h1>
             <p>Shane Power | 20102592 | SETU</p>
         </div>
         <nav>
             <a href="#about">About</a>
             <a href="#system">System</a>
             <a href="#security">Security</a>
+            <a href="#video">Demo</a>
             <a href="#links">Project Links</a>
         </nav>
     </header>
@@ -29,18 +30,21 @@
         <section id="about">
             <h2>About</h2>
             <p>
-                This project designs and implements a secure smartphone-based digital car key system aimed at
-                car rental and fleet management. The system replaces traditional physical keys with securely
-                provisioned digital keys, improving convenience and reducing the security risks associated
-                with handling physical keys.
+                GoKey is a secure smartphone-based digital car key system designed for fleet and rental
+                management. The system replaces traditional physical keys with cryptographically signed
+                lock and unlock commands, ending in real CAN bus actuation on a Jaguar Land Rover test rig.
             </p>
             <p>
-                The prototype consists of a mobile Car Key App, a Vehicle Access Control Unit (VACU) running
-                on a PC, a cloud-based management platform, and a CAN interface using Vector CANoe connected
-                to a Jaguar Land Rover testing rig.
+                The headline security design is that no shared signing secret ever exists between the phone
+                and the cloud. Each user's private signing key is generated on first sign-in inside the
+                Android Keystore - hardware-backed and non-exportable - and only the public key is uploaded
+                to the cloud for the Vehicle Access Control Unit to verify against.
             </p>
-
-            
+            <p>
+                The prototype is made up of an Android app (driver and manager roles), a Python VACU, a
+                Firebase cloud backend, a Streamlit monitoring dashboard, and a CAN interface using Vector
+                CANoe connected to a Jaguar Land Rover test rig.
+            </p>
         </section>
 
         <section id="system" class="alt-bg">
@@ -48,7 +52,7 @@
 
             <h3>Context Diagram</h3>
             <div class="diagram-container">
-                <img src="poster/context diagram svg.svg" width="600" height="600" alt="System Context Diagram" class="diagram">
+                <img src="poster/system context diagram.svg" width="600" height="600" alt="System Context Diagram" class="diagram">
             </div>
 
             <h3>Architecture</h3>
@@ -56,63 +60,103 @@
                 <img src="poster/architecture.png" alt="System Architecture Diagram" class="diagram">
             </div>
 
-            <h3>Car Key App</h3>
+            <h3>Android Car Key App</h3>
             <p>
-                An Android app that authenticates the user via biometrics (fingerprint, Face ID) or PIN.
-                Once authenticated, the app issues a signed lock or unlock command over Bluetooth Low Energy
-                (BLE) to the VACU. Private keys are stored securely in the Android Keystore.
+                The Android app holds both the driver and manager roles inside a single codebase. After
+                Firebase Authentication, the user's role is read from their Firestore profile and the
+                navigation graph routes them to the correct home screen. Drivers authenticate with biometrics
+                (fingerprint or face) on session resume.
+            </p>
+            <p>
+                On first sign-in, the app generates an ECDSA P-256 key pair inside the Android Keystore.
+                The private key is hardware-backed and non-exportable, even on a rooted device. The public
+                key is uploaded once to the user's Firestore profile.
             </p>
 
             <h3>Vehicle Access Control Unit (VACU)</h3>
             <p>
-                A Python application that acts as the BLE server and the secure control point between the
-                mobile app and the vehicle network. It validates incoming requests using:
+                A Python application that acts as the BLE GATT central and the only path between the phone
+                and the vehicle network. Every incoming command runs through a four-stage validation pipeline:
             </p>
-            <ul>
-                <li>Cryptographic key pair checking</li>
-                <li>Timestamp and nonce verification</li>
-                <li>User authorisation rules</li>
-            </ul>
+            <ol>
+                <li>Format and timestamp freshness</li>
+                <li>Nonce uniqueness against an in-memory cache</li>
+                <li>Active key state in Firestore</li>
+                <li>ECDSA-SHA256 signature verification using the user's registered public key</li>
+            </ol>
+            <p>
+                Any stage failure rejects the command, logs the failure with a reason, and surfaces it on
+                the dashboard.
+            </p>
 
             <h3>CANoe &amp; JLR Test Rig</h3>
             <p>
-                Once the VACU approves a request, it forwards the command to Vector CANoe via the Microsoft
-                COM interface. CANoe generates and transmits a real CAN message to a Jaguar Land Rover
-                testing rig, triggering simulated door lock and unlock events.
+                Once the VACU approves a command, it forwards it to Vector CANoe via the Microsoft COM
+                interface. CANoe simulates the rig's Janix module by replaying captured CAN traffic, with
+                the ignition state message generated manually based on a system variable. CANoe then
+                transmits the corresponding CAN frame onto the bus, actuating the door lock on the Jaguar
+                Land Rover test rig.
             </p>
 
-            <h3>Cloud Backend &amp; Manager App</h3>
+            <h3>Cloud Backend &amp; Manager Role</h3>
             <p>
-                The cloud backend handles user authentication, digital key provisioning, and event logging.
-                Fleet managers use the Manager App to:
+                The cloud backend uses Firebase Authentication and Firestore to handle users, vehicles,
+                digital keys, public keys, and the audit log. Firestore Security Rules enforce role-based
+                access - drivers can read only their own key document and update only the publicKey field
+                on their own user record, while only managers can write to the keys, vehicles, and users
+                collections.
+            </p>
+            <p>
+                The manager interface is part of the same Android app, accessed when the signed-in user has
+                the MANAGER role. Managers can:
             </p>
             <ul>
-                <li>Create, assign, and revoke digital keys</li>
-                <li>Manage temporary guest access</li>
-                <li>Monitor vehicle access activity and logs</li>
+                <li>Create and manage users and vehicles</li>
+                <li>Assign and revoke digital keys with expiry dates</li>
+                <li>View the full audit log of every lock and unlock event across the fleet</li>
             </ul>
+
+            <h3>Monitoring Dashboard</h3>
+            <p>
+                A Streamlit dashboard reads the audit log from Firestore in real time, showing fleet-wide
+                lock and unlock events alongside a security overview that breaks down rejected attack
+                attempts by failure reason.
+            </p>
         </section>
 
         <section id="security">
             <h2>Cybersecurity</h2>
             <p>
-                A key focus of this project is evaluating the security of a digital car key system. A threat
-                model was developed covering the following attack types:
+                A core focus of the project is evaluating the security of a smartphone-based digital car
+                key. A threat model was developed and validated by running seven attack scenarios through
+                the live VACU validation pipeline. All seven were rejected at the expected stage and logged
+                in real time to the dashboard.
             </p>
             <ul>
-                <li><strong>Replay Attacks</strong> - An attacker captures and replays a valid BLE unlock message. Mitigated using nonces and timestamps in a challenge-response protocol.</li>
-                <li><strong>Man-in-the-Middle Attacks</strong> - An attacker intercepts the BLE transmission. Mitigated using BLE Secure Connections with pairing and bonding, and the VACU rejecting unsigned or altered messages.</li>
-                <li><strong>Unauthorised Access</strong> - An attacker with a stolen KeyID attempts access. Mitigated by biometric/PIN authentication, secure keystore storage, and key revocation.</li>
-                <li><strong>Cloud Data Breach</strong> - The cloud backend is compromised. Mitigated because private keys are stored only on the user's device, and TLS encryption is used for all communications.</li>
+                <li><strong>Replay Attacks</strong> - Captured payloads cannot be reused. Mitigated by a 30-second timestamp window plus an in-memory nonce cache that catches sub-window replays the timestamp check alone cannot.</li>
+                <li><strong>Payload Tampering</strong> - Modifying any signed field (command, nonce, or timestamp) invalidates the ECDSA signature, which fails the VACU's stage four check.</li>
+                <li><strong>Unauthorised Access</strong> - Biometric authentication is required on session resume so a stolen unlocked phone cannot issue commands. Compromised keys are revoked through the manager interface and rejected on the next active key lookup.</li>
+                <li><strong>Cloud Data Breach</strong> - Firestore stores only public keys, never signing material. A database breach yields nothing that can be used to forge a command. Firestore Security Rules enforce role-based access and the audit log is write-only from the VACU.</li>
+                <li><strong>Man-in-the-Middle</strong> - Application-layer ECDSA signing protects payload integrity. The BLE transport channel itself is not encrypted in this prototype - enabling BLE Secure Connections is identified as future work.</li>
             </ul>
-            <p>Each attack vector will be tested in a controlled environment to demonstrate the system's resilience.</p>
         </section>
 
-        <section id="links" class="alt-bg">
+        <section id="video" class="alt-bg">
+            <h2>Demo Video</h2>
+            <p>End-to-end walkthrough of the system, from manager assigning a key through to the door lock actuating on the test rig.</p>
+
+               <div class="video-container">
+<iframe src="https://www.youtube.com/embed/Fst6Dg-Wids" title="GoKey Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            </div>
+        </section>
+
+        <section id="links">
             <h2>Project Links</h2>
             <ul>
+                <li><a href="docs/Abstract.pdf" target="_blank"> Abstract (7 pages)</a></li>
+                <li><a href="docs/FYP Report 2.pdf" target="_blank">Full Report</a></li>
                 <li><a href="poster/portrait.png" target="_blank">Poster</a></li>
-                <li><a href="#" target="_blank">Demo Video</a></li>
+                <li><a href="https://youtu.be/Fst6Dg-Wids" target="_blank">Demo Video on YouTube</a></li>
                 <li><a href="https://github.com/shanepower22/car-key-app/" target="_blank">GitHub Repository</a></li>
             </ul>
         </section>
